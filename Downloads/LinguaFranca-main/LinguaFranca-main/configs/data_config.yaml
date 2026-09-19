@@ -1,0 +1,79 @@
+# ────────────────────────────────────────────────────────────────────────────
+# LinguaFranca — Data Pipeline Config
+# ────────────────────────────────────────────────────────────────────────────
+
+# ── Model ────────────────────────────────────────────────────────────────────
+model:
+  # "meta-llama/Llama-3.2-3B-Instruct"  or  "Qwen/Qwen2.5-3B-Instruct"
+  name: "meta-llama/Llama-3.2-3B-Instruct"
+  dtype: "float16"           # float16 | bfloat16
+  device_map: "auto"         # "auto" lets accelerate decide GPU/CPU split
+  trust_remote_code: false   # set true for Qwen models
+
+# ── Paths ────────────────────────────────────────────────────────────────────
+data:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  hidden_states_dir: "data/hidden_states"
+
+  splits:
+    train: 0.60
+    val:   0.20
+    test:  0.20
+
+  # How many examples to sample from 2WikiMultihopQA BEFORE augmentation.
+  # After counterfactual augmentation the final count will be higher.
+  n_source_examples: 8000
+
+  datasets:
+    "2wikimultihopqa":
+      hf_path: "framolfese/2WikiMultihopQA"
+      hf_split: "train"         # we do our own 60/20/20 split
+    hotpotqa:
+      hf_path: "hotpot_qa"
+      hf_config: "distractor"
+      hf_split: "validation"    # used only for OOD evaluation; ~7.4k items
+
+# ── Entity Matching ──────────────────────────────────────────────────────────
+matching:
+  sbert_model: "sentence-transformers/all-MiniLM-L6-v2"
+  sbert_threshold: 0.80          # cosine threshold for tier-2 match
+  wikidata_aliases_path: "data/raw/wikidata_aliases.json"
+  sparql_rate_limit_sec: 0.5     # be polite to Wikidata endpoint
+  use_llm_fallback: true
+  llm_fallback_budget: 0.05      # at most 5 % of examples get LLM-judge
+
+# ── CoT Generation ───────────────────────────────────────────────────────────
+generation:
+  batch_size: 4
+  max_new_tokens: 512
+  temperature: 0.0               # greedy decoding for reproducibility
+  do_sample: false
+  max_hops: 4                    # upper bound on <hopN> tags we look for
+
+  # Prompt template — {question} is substituted at runtime
+  system_prompt: |
+    You are a careful step-by-step reasoner. You must wrap EACH intermediate
+    reasoning step in XML hop tags and give your final answer in <answer> tags.
+    Do not skip any step. Example format:
+    <hop1>First intermediate reasoning step.</hop1>
+    <hop2>Second intermediate reasoning step.</hop2>
+    <answer>Final answer.</answer>
+
+# ── Hidden State Extraction ──────────────────────────────────────────────────
+hidden_states:
+  extract: true
+  # "all" → every transformer layer; or a list e.g. [8, 16, 24, 31]
+  layers: "all"
+  pooling: "mean"               # mean-pool over hop token span for probe training
+  save_single_token: true       # also save last-bridging-entity token for causal patching
+
+# ── Counterfactuals ──────────────────────────────────────────────────────────
+counterfactuals:
+  target_failure_ratio: 0.45    # aim for 45 % failure examples (near 50/50)
+  max_substitution_attempts: 25 # tries per example before giving up
+  validate_induced_failure: true
+  same_semantic_category: true  # substitutes must be the same entity type
+
+# ── Reproducibility ──────────────────────────────────────────────────────────
+seed: 42

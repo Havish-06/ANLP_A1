@@ -12,7 +12,7 @@ This repository implements the full data and modelling pipeline for the project.
 ### Five Phases
 | Phase | Description | Location |
 |---|---|---|
-| 1 | **Data construction & hop labeling** | `src/data/` |
+| 1 | **Data construction & hop labeling** | `phase1_dataset/` |
 | 2 | **Internal-state probing** | `src/probe/` *(coming)* |
 | 3 | **Causal validation (activation patching)** | `src/causal/` *(coming)* |
 | 4 | **Naive Restart RAG intervention** | `src/rag/` *(coming)* |
@@ -55,16 +55,16 @@ Large Language Models usually answer questions correctly, meaning natural failur
 
 ```bash
 # Full pipeline (download → CoT → label → counterfactuals → split)
-python src/data/build_dataset.py --config configs/data_config.yaml
+python phase1_dataset/build_dataset.py --config configs/data_config.yaml
 
 # Dry-run (skips model inference, validates schema only)
-python src/data/build_dataset.py --config configs/data_config.yaml --dry-run
+python phase1_dataset/build_dataset.py --config configs/data_config.yaml --dry-run
 
 # Individual steps
-python src/data/download.py       --config configs/data_config.yaml
-python src/data/generate_cot.py   --config configs/data_config.yaml
-python src/data/label_hops.py     --config configs/data_config.yaml
-python src/data/counterfactuals.py --config configs/data_config.yaml
+python phase1_dataset/download.py       --config configs/data_config.yaml
+python phase1_dataset/generate_cot.py   --config configs/data_config.yaml
+python phase1_dataset/label_hops.py     --config configs/data_config.yaml
+python phase1_dataset/counterfactuals.py --config configs/data_config.yaml
 ```
 
 ### Output schema (`data/processed/*.jsonl`)
@@ -94,17 +94,19 @@ python src/data/counterfactuals.py --config configs/data_config.yaml
 
 ## Project Structure
 
+> **Note:** The `data/` folder is heavily populated during Phase 1. Because of its large size (3+ GB), it is not tracked in this repository locally. The generated data is hosted securely on Kaggle at the [Phase 1 Dataset Link](https://www.kaggle.com/datasets/havishbalaga/linguafranca-phase1-data).
+
 ```
 LinguaFranca/
 ├── configs/
 │   └── data_config.yaml
-├── data/
-│   ├── raw/                  ← cached HF downloads + wikidata_aliases.json
-│   ├── processed/            ← train.jsonl, val.jsonl, test.jsonl, hotpotqa_test.jsonl
-│   └── hidden_states/        ← per-example .pt tensors
+├── data/                     ← [Phase 1 Kaggle Dataset](https://www.kaggle.com/datasets/havishbalaga/linguafranca-phase1-data)
+│   ├── raw/                  ← (Generated when running Phase 1)
+│   ├── processed/            ← (Generated when running Phase 1)
+│   └── hidden_states/        ← (Generated when running Phase 1)
 ├── src/
 │   ├── utils/
-│   │   ├── matching.py       ← 3-tier entity presence check
+│   │   ├── matching.py       
 │   │   └── wikidata_aliases.py
 │   └── data/
 │       ├── download.py
@@ -112,5 +114,9 @@ LinguaFranca/
 │       ├── label_hops.py
 │       ├── counterfactuals.py
 │       └── build_dataset.py
+├── tests/                    ← Unit tests
+├── kaggle_phase1.ipynb       ← Kaggle notebook for running Phase 1
+├── kaggle_run.py             ← Script for Kaggle execution
+├── LinguaFranca-Proposal.pdf ← Project Proposal
 └── requirements.txt
 ```
